@@ -1,3 +1,4 @@
+# triggered APIA validation 1786116365
 # staging namespace — Gitea with MEMORY cache
 # PR: "remove Redis dependency, simplify stack with built-in memory cache"
 apiVersion: v1
