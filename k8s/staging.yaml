@@ -1,5 +1,5 @@
 # staging namespace — Gitea with MEMORY cache
-# PR description: "remove Redis dependency, simplify stack with built-in memory cache"
+# PR: "remove Redis dependency, simplify stack with built-in memory cache"
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -27,6 +27,7 @@ spec:
       containers:
         - name: app
           image: localhost:5000/gitea:staging
+          imagePullPolicy: Always
           ports:
             - containerPort: 3000
           env:
