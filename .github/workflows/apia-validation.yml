@@ -84,12 +84,28 @@ jobs:
 
       - name: Run K6 load test
         shell: bash
+        env:
+          # K6 stage durations — single source of truth for both k6 and pipeline.py.
+          # Change here only; pipeline.py reads K6_SKIP_START_S and K6_SKIP_END_S.
+          K6_STAGE_WARMUP: 60
+          K6_STAGE_RAMPUP: 30
+          K6_STAGE_MEASURE: 120
+          K6_STAGE_RAMPDOWN: 30
         run: |
           k6 run k6/load-test.js \
             --env BASELINE_URL=http://localhost:30301 \
             --env STAGING_URL=http://localhost:30302 \
+            --env WARMUP_S=$K6_STAGE_WARMUP \
+            --env RAMPUP_S=$K6_STAGE_RAMPUP \
+            --env MEASURE_S=$K6_STAGE_MEASURE \
+            --env RAMPDOWN_S=$K6_STAGE_RAMPDOWN \
             --summary-export /tmp/k6-summary.json || true
+
           echo "K6_RESULT_FILE=/tmp/k6-summary.json" >> $GITHUB_ENV
+          # pipeline.py reads these to compute the Prometheus measurement window
+          echo "K6_SKIP_START_S=$(( K6_STAGE_WARMUP + K6_STAGE_RAMPUP ))" >> $GITHUB_ENV
+          echo "K6_SKIP_END_S=$K6_STAGE_RAMPDOWN"                          >> $GITHUB_ENV
+          echo "K6_TOTAL_S=$(( K6_STAGE_WARMUP + K6_STAGE_RAMPUP + K6_STAGE_MEASURE + K6_STAGE_RAMPDOWN ))" >> $GITHUB_ENV
 
       - name: Run APIA pipeline
         env:
