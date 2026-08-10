@@ -1,6 +1,6 @@
-# staging namespace — healthy reference deployment (mirrors baseline)
-# PRs that change infrastructure modify this file.
-# Code-only PRs leave it untouched; staging deploys this healthy config.
+# staging namespace — DB connection pool crushed to 3 (regression under test)
+# Expected: database domain RED (pool exhausted), backend RED (cascade),
+#           cache GREEN (Redis still present), frontend degraded.
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -94,7 +94,7 @@ spec:
             limits:
               memory: 64Mi
 ---
-# ── Redis ─────────────────────────────────────────────────────────────────────
+# ── Redis (kept — cache must stay GREEN to isolate the DB regression) ─────────
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -208,6 +208,10 @@ spec:
               value: gitea
             - name: GITEA__database__SSL_MODE
               value: disable
+            - name: GITEA__database__MAX_OPEN_CONNS
+              value: "3"
+            - name: GITEA__database__MAX_IDLE_CONNS
+              value: "1"
             - name: GITEA__cache__ENABLED
               value: "true"
             - name: GITEA__cache__ADAPTER
