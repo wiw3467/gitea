@@ -225,8 +225,16 @@ function authenticatedJourney(baseURL) {
 
 function extractCSRF(body) {
   if (!body) return '';
-  const match = body.toString().match(/_csrf[^>]+value="([^"]+)"/);
-  return match ? match[1] : '';
+  const s = body.toString();
+  // Gitea >= 1.20 puts CSRF in a <meta> tag
+  let m = s.match(/<meta\s+name="_csrf"\s+content="([^"]+)"/);
+  if (m) return m[1];
+  // Fallback: hidden input, value before or after name
+  m = s.match(/name="_csrf"[^>]*value="([^"]+)"/);
+  if (m) return m[1];
+  m = s.match(/value="([^"]+)"[^>]*name="_csrf"/);
+  if (m) return m[1];
+  return '';
 }
 
 export function testBaseline() { runTest(BASELINE_URL); }
