@@ -99,10 +99,6 @@ function b64(str) {
   return result;
 }
 
-// ─── User journey mix ────────────────────────────────────────────────────────
-// 30% anonymous browsing (no session = no Redis session hit)
-// 70% authenticated session (every request hits Redis for session lookup)
-
 function runTest(baseURL) {
   if (Math.random() < 0.30) {
     anonymousJourney(baseURL);
@@ -119,13 +115,13 @@ function anonymousJourney(baseURL) {
     });
     sleep(0.5);
 
-    // Explore repos — Postgres: full repo table scan with pagination
+    // Explore repos listing
     check(http.get(`${baseURL}/explore/repos`, { timeout: '10s' }), {
       'explore repos 200': (r) => r.status === 200,
     });
     sleep(0.5);
 
-    // API repo search — Postgres: FTS or LIKE query
+    // API repo search
     check(http.get(`${baseURL}/api/v1/repos/search?limit=10&q=test`, { timeout: '10s' }), {
       'api search 200': (r) => r.status === 200,
     });
@@ -135,7 +131,7 @@ function anonymousJourney(baseURL) {
 
 function authenticatedJourney(baseURL) {
   group('authenticated', () => {
-    // ── Login — creates a Redis session ──────────────────────────────────────
+    // Login
     const loginPage = http.get(`${baseURL}/user/login`, { timeout: '10s' });
     const csrf = extractCSRF(loginPage.body);
 
@@ -153,7 +149,6 @@ function authenticatedJourney(baseURL) {
       'login succeeded': (r) => r.status === 200 && !r.url.includes('user/login'),
     });
 
-    // Capture session cookie — every subsequent request hits Redis to validate it
     const jar = loginRes.cookies;
     const cookies = Object.entries(jar)
       .map(([k, v]) => `${k}=${v[0].value}`)
@@ -162,7 +157,6 @@ function authenticatedJourney(baseURL) {
 
     sleep(0.5);
 
-    // ── Dashboard — authenticated, hits Redis session + Postgres activity feed
     group('dashboard', () => {
       check(http.get(`${baseURL}/`, { headers: sessionHeaders, timeout: '10s' }), {
         'dashboard 200': (r) => r.status === 200,
@@ -170,7 +164,6 @@ function authenticatedJourney(baseURL) {
     });
     sleep(0.5);
 
-    // ── Repository view — Postgres: repo metadata + git data
     group('repo view', () => {
       check(http.get(`${baseURL}/${ADMIN_USER}/${TEST_REPO}`, {
         headers: sessionHeaders, timeout: '10s',
@@ -180,7 +173,6 @@ function authenticatedJourney(baseURL) {
     });
     sleep(0.5);
 
-    // ── Issue list — Postgres: paginated query on issues table
     group('issue list', () => {
       check(http.get(`${baseURL}/${ADMIN_USER}/${TEST_REPO}/issues`, {
         headers: sessionHeaders, timeout: '10s',
@@ -190,7 +182,6 @@ function authenticatedJourney(baseURL) {
     });
     sleep(0.5);
 
-    // ── API: user repos — authenticated API, Redis session + Postgres
     group('api user repos', () => {
       check(http.get(`${baseURL}/api/v1/user/repos?limit=10`, {
         headers: {
@@ -204,7 +195,6 @@ function authenticatedJourney(baseURL) {
     });
     sleep(0.5);
 
-    // ── API: issue listing — Postgres: joins issues + users + labels
     group('api issues', () => {
       check(http.get(`${baseURL}/api/v1/repos/${ADMIN_USER}/${TEST_REPO}/issues?limit=10&type=issues&state=open`, {
         headers: {
@@ -218,7 +208,6 @@ function authenticatedJourney(baseURL) {
     });
     sleep(0.5);
 
-    // ── User settings — Redis session validation + Postgres user record
     group('user settings', () => {
       check(http.get(`${baseURL}/user/settings`, {
         headers: sessionHeaders, timeout: '10s',
@@ -228,7 +217,6 @@ function authenticatedJourney(baseURL) {
     });
     sleep(1);
 
-    // ── Logout — destroys Redis session
     group('logout', () => {
       const settingsPage = http.get(`${baseURL}/user/settings`, {
         headers: sessionHeaders, timeout: '10s',
