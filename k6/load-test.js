@@ -1,5 +1,6 @@
 import http from 'k6/http';
 import { sleep, check, group } from 'k6';
+import encoding from 'k6/encoding';
 
 const BASELINE_URL = __ENV.BASELINE_URL || 'http://localhost:30301';
 const STAGING_URL  = __ENV.STAGING_URL  || 'http://localhost:30302';
@@ -53,16 +54,19 @@ export function setup() {
 function seedEnv(baseURL) {
   const headers = { 'Content-Type': 'application/json' };
 
-  // Create admin user via Gitea API
-  http.post(`${baseURL}/api/v1/user/register`, JSON.stringify({
+  // Create admin user — 200 means created, 422 means already exists, both are fine
+  const regRes = http.post(`${baseURL}/api/v1/user/register`, JSON.stringify({
     username: ADMIN_USER,
     password: ADMIN_PASS,
     email: 'apia@test.local',
     must_change_password: false,
   }), { headers });
+  if (regRes.status !== 200 && regRes.status !== 201 && regRes.status !== 422) {
+    console.warn(`seedEnv(${baseURL}): user registration returned ${regRes.status}`);
+  }
 
   // Auth header for subsequent calls
-  const auth = { Authorization: `Basic ${b64(ADMIN_USER + ':' + ADMIN_PASS)}` };
+  const auth = { Authorization: `Basic ${encoding.b64encode(ADMIN_USER + ':' + ADMIN_PASS)}` };
   const h = { ...headers, ...auth };
 
   // Create a repo
@@ -83,21 +87,6 @@ function seedEnv(baseURL) {
   }
 }
 
-function b64(str) {
-  // k6 built-in base64 encoding
-  const bytes = [];
-  for (let i = 0; i < str.length; i++) bytes.push(str.charCodeAt(i));
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-  let result = '';
-  for (let i = 0; i < bytes.length; i += 3) {
-    const b0 = bytes[i], b1 = bytes[i+1] || 0, b2 = bytes[i+2] || 0;
-    result += chars[b0 >> 2];
-    result += chars[((b0 & 3) << 4) | (b1 >> 4)];
-    result += i+1 < bytes.length ? chars[((b1 & 15) << 2) | (b2 >> 6)] : '=';
-    result += i+2 < bytes.length ? chars[b2 & 63] : '=';
-  }
-  return result;
-}
 
 function runTest(baseURL) {
   if (Math.random() < 0.30) {
@@ -186,7 +175,7 @@ function authenticatedJourney(baseURL) {
       check(http.get(`${baseURL}/api/v1/user/repos?limit=10`, {
         headers: {
           ...sessionHeaders,
-          Authorization: `Basic ${b64(ADMIN_USER + ':' + ADMIN_PASS)}`,
+          Authorization: `Basic ${encoding.b64encode(ADMIN_USER + ':' + ADMIN_PASS)}`,
         },
         timeout: '10s',
       }), {
@@ -199,7 +188,7 @@ function authenticatedJourney(baseURL) {
       check(http.get(`${baseURL}/api/v1/repos/${ADMIN_USER}/${TEST_REPO}/issues?limit=10&type=issues&state=open`, {
         headers: {
           ...sessionHeaders,
-          Authorization: `Basic ${b64(ADMIN_USER + ':' + ADMIN_PASS)}`,
+          Authorization: `Basic ${encoding.b64encode(ADMIN_USER + ':' + ADMIN_PASS)}`,
         },
         timeout: '10s',
       }), {
