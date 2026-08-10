@@ -54,18 +54,7 @@ export function setup() {
 function seedEnv(baseURL) {
   const headers = { 'Content-Type': 'application/json' };
 
-  // Create admin user — 200 means created, 422 means already exists, both are fine
-  const regRes = http.post(`${baseURL}/api/v1/user/register`, JSON.stringify({
-    username: ADMIN_USER,
-    password: ADMIN_PASS,
-    email: 'apia@test.local',
-    must_change_password: false,
-  }), { headers });
-  if (regRes.status !== 200 && regRes.status !== 201 && regRes.status !== 422) {
-    console.warn(`seedEnv(${baseURL}): user registration returned ${regRes.status}`);
-  }
-
-  // Auth header for subsequent calls
+  // Auth header — user is pre-created by CI before k6 starts
   const auth = { Authorization: `Basic ${encoding.b64encode(ADMIN_USER + ':' + ADMIN_PASS)}` };
   const h = { ...headers, ...auth };
 
