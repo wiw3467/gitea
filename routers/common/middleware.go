@@ -36,6 +36,7 @@ func ProtocolMiddlewares() (handlers []any) {
 	}
 
 	handlers = append(handlers, routing.NewRequestInfoHandler())
+	handlers = append(handlers, RequestLatencyMiddleware())
 
 	if setting.IsAccessLogEnabled() {
 		handlers = append(handlers, context.AccessLogger())
