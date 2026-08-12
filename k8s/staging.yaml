@@ -21,6 +21,8 @@ spec:
       labels:
         app: postgres
     spec:
+      nodeSelector:
+        apia-role: staging
       containers:
         - name: postgres
           image: postgres:15-alpine
@@ -78,6 +80,8 @@ spec:
         prometheus.io/port: "9187"
         apia.io/domain: "database"
     spec:
+      nodeSelector:
+        apia-role: staging
       containers:
         - name: pg-exporter
           image: prometheuscommunity/postgres-exporter:latest
@@ -115,6 +119,8 @@ spec:
         prometheus.io/port: "3000"
         apia.io/domain: "backend"
     spec:
+      nodeSelector:
+        apia-role: staging
       containers:
         - name: app
           image: k3d-apia-registry:5000/gitea:staging
@@ -134,10 +140,6 @@ spec:
               value: gitea
             - name: GITEA__database__SSL_MODE
               value: disable
-            - name: GITEA__cache__ENABLED
-              value: "true"
-            - name: GITEA__cache__ADAPTER
-              value: memory
             - name: GITEA__metrics__ENABLED
               value: "true"
             - name: GITEA__server__HTTP_PORT
