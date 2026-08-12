@@ -1,6 +1,5 @@
-# staging namespace — healthy reference deployment (mirrors baseline)
-# PRs that change infrastructure modify this file.
-# Code-only PRs leave it untouched; staging deploys this healthy config.
+# staging namespace — Redis misconfigured: 10MB maxmemory + allkeys-lru eviction.
+# Expected: cache hit ratio collapses under load, evictions spike, backend falls through to DB.
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -27,6 +26,10 @@ spec:
       containers:
         - name: postgres
           image: postgres:15-alpine
+          args:
+            - "postgres"
+            - "-c"
+            - "log_min_duration_statement=100"
           env:
             - name: POSTGRES_DB
               value: gitea
@@ -119,6 +122,12 @@ spec:
       containers:
         - name: redis
           image: redis:7-alpine
+          command:
+            - "redis-server"
+            - "--maxmemory"
+            - "10mb"
+            - "--maxmemory-policy"
+            - "allkeys-lru"
           ports:
             - containerPort: 6379
           resources:
