@@ -49,16 +49,9 @@ jobs:
             docker push localhost:5000/gitea:baseline
           fi
 
-          # Staging image: built from PR branch if source changed
-          CHANGED_SRC=$(git diff FETCH_HEAD HEAD --name-only | grep -Ev '^(k8s|\.github)/' | wc -l) || CHANGED_SRC=0
-          if [ "$CHANGED_SRC" -gt "0" ] || ! docker image inspect localhost:5000/gitea:staging &>/dev/null; then
-            echo "Building staging image from PR branch..."
-            docker build -t localhost:5000/gitea:${SHA} -t localhost:5000/gitea:staging .
-          else
-            echo "k8s-only change — staging runs same code as baseline (no source diff)"
-            docker tag localhost:5000/gitea:baseline localhost:5000/gitea:${SHA}
-            docker tag localhost:5000/gitea:baseline localhost:5000/gitea:staging
-          fi
+          # Staging image: always built fresh from the PR branch
+          echo "Building staging image from PR branch (${SHA})..."
+          docker build -t localhost:5000/gitea:${SHA} -t localhost:5000/gitea:staging .
           docker push localhost:5000/gitea:${SHA}
           docker push localhost:5000/gitea:staging
 
