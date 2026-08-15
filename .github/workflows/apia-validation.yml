@@ -51,8 +51,7 @@ jobs:
 
           # Staging image: always built fresh from the PR branch
           echo "Building staging image from PR branch (${SHA})..."
-          docker build -t localhost:5000/gitea:${SHA} -t localhost:5000/gitea:staging .
-          docker push localhost:5000/gitea:${SHA}
+          docker build -t localhost:5000/gitea:staging .
           docker push localhost:5000/gitea:staging
 
       - name: Compute git diff
