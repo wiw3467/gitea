@@ -55,8 +55,9 @@ jobs:
             echo "Building staging image from PR branch..."
             docker build -t localhost:5000/gitea:${SHA} -t localhost:5000/gitea:staging .
           else
-            echo "k8s-only change — retagging existing staging image..."
-            docker tag localhost:5000/gitea:staging localhost:5000/gitea:${SHA}
+            echo "k8s-only change — staging runs same code as baseline (no source diff)"
+            docker tag localhost:5000/gitea:baseline localhost:5000/gitea:${SHA}
+            docker tag localhost:5000/gitea:baseline localhost:5000/gitea:staging
           fi
           docker push localhost:5000/gitea:${SHA}
           docker push localhost:5000/gitea:staging
