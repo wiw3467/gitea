@@ -126,6 +126,28 @@ jobs:
           seed_user baseline
           seed_user staging
 
+      - name: Warm up both environments
+        shell: bash
+        run: |
+          warmup() {
+            local BASE=$1
+            local END=$(( $(date +%s) + 90 ))
+            local CREDS="apia-admin:Apia2024!"
+            while [ "$(date +%s)" -lt "$END" ]; do
+              curl -sf --max-time 5 "$BASE/"                                                    -o /dev/null || true
+              curl -sf --max-time 5 "$BASE/explore/repos"                                      -o /dev/null || true
+              curl -sf --max-time 5 "$BASE/user/login"                                         -o /dev/null || true
+              curl -sf --max-time 5 -u "$CREDS" "$BASE/api/v1/repos/search?limit=10&q="       -o /dev/null || true
+              curl -sf --max-time 5 -u "$CREDS" "$BASE/api/v1/user/repos?limit=10"            -o /dev/null || true
+              curl -sf --max-time 5 -u "$CREDS" "$BASE/api/v1/repos/apia-admin/test-repo/issues?limit=10" -o /dev/null || true
+            done
+          }
+          echo "Warming up both environments for 90s..."
+          warmup http://localhost:30301 &
+          warmup http://localhost:30302 &
+          wait
+          echo "Warmup complete"
+
       - name: Run K6 load test
         shell: bash
         env:
