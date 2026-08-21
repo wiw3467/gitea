@@ -65,12 +65,12 @@ jobs:
           kubectl delete namespace staging --ignore-not-found=true &
           wait
 
-          # Baseline: always from main's k8s/baseline.yaml (permanent healthy reference)
-          git show origin/main:k8s/baseline.yaml | kubectl apply -f -
+          # Baseline: always from main's demo/k8s/baseline/deploy.yaml (permanent healthy reference)
+          git show origin/main:demo/k8s/baseline/deploy.yaml | kubectl apply -f -
 
-          # Staging: k8s/staging.yaml from the PR branch.
+          # Staging: demo/k8s/staging/deploy.yaml from the PR branch.
           # On main it mirrors baseline (healthy). PRs that change infrastructure modify it.
-          kubectl apply -f k8s/staging.yaml
+          kubectl apply -f demo/k8s/staging/deploy.yaml
 
           kubectl rollout status deployment/postgres -n baseline --timeout=90s &
           kubectl rollout status deployment/postgres -n staging --timeout=90s &
@@ -148,7 +148,7 @@ jobs:
           K6_VUS: 25
         run: |
           K6_START_TS=$(date +%s)
-          k6 run k6/load-test.js \
+          k6 run demo/k6/load-test.js \
             --env BASELINE_URL=http://localhost:30301 \
             --env STAGING_URL=http://localhost:30302 \
             --env WARMUP_S=$K6_STAGE_WARMUP \
@@ -178,7 +178,17 @@ jobs:
           BASELINE_URL: http://localhost:30301
           STAGING_URL: http://localhost:30302
           PYTHONIOENCODING: utf-8
-        run: python $APIA_HOME/pipeline/pipeline.py
+          STAGING_NAMESPACE: staging
+          BASELINE_NAMESPACE: baseline
+          CONTAINER_NAME: app
+          DB_NAME: gitea
+          LOG_FILTER: "router: completed"
+          API_PREFIX: /api/
+          PROBE_SERVICES: "postgres:5432,redis:6379"
+          OLLAMA_HOST: host.docker.internal
+          OLLAMA_PORT: "11434"
+          OLLAMA_MODEL: llama3:8b
+        run: python $APIA_HOME/framework/pipeline.py
 
       - name: Teardown staging
         if: always()
