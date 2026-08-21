@@ -1,6 +1,5 @@
-# staging namespace — healthy reference deployment (mirrors baseline)
-# PRs that change infrastructure modify this file.
-# Code-only PRs leave it untouched; staging deploys this healthy config.
+# staging namespace — Redis REMOVED (regression under test)
+# Expected: cache domain absent in Prometheus, database load elevated.
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -102,85 +101,6 @@ spec:
             limits:
               memory: 64Mi
 ---
-# ── Redis ─────────────────────────────────────────────────────────────────────
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: redis
-  namespace: staging
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: redis
-  template:
-    metadata:
-      labels:
-        app: redis
-    spec:
-      nodeSelector:
-        apia-role: staging
-      containers:
-        - name: redis
-          image: redis:7-alpine
-          ports:
-            - containerPort: 6379
-          resources:
-            requests:
-              memory: 64Mi
-              cpu: 50m
-            limits:
-              memory: 128Mi
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: redis
-  namespace: staging
-spec:
-  selector:
-    app: redis
-  ports:
-    - port: 6379
-      targetPort: 6379
----
-# ── Redis exporter (apia.io/domain = cache) ───────────────────────────────────
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: redis-exporter
-  namespace: staging
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: redis-exporter
-  template:
-    metadata:
-      labels:
-        app: redis-exporter
-      annotations:
-        prometheus.io/scrape: "true"
-        prometheus.io/port: "9121"
-        apia.io/domain: "cache"
-    spec:
-      nodeSelector:
-        apia-role: staging
-      containers:
-        - name: redis-exporter
-          image: oliver006/redis_exporter:latest
-          env:
-            - name: REDIS_ADDR
-              value: "redis://redis:6379"
-          ports:
-            - containerPort: 9121
-          resources:
-            requests:
-              memory: 32Mi
-              cpu: 50m
-            limits:
-              memory: 64Mi
----
 # ── Gitea app (apia.io/domain = backend) ─────────────────────────────────────
 apiVersion: apps/v1
 kind: Deployment
@@ -225,9 +145,7 @@ spec:
             - name: GITEA__cache__ENABLED
               value: "true"
             - name: GITEA__cache__ADAPTER
-              value: redis
-            - name: GITEA__cache__HOST
-              value: "redis://redis:6379/0?pool_size=100&idle_timeout=180s"
+              value: memory
             - name: GITEA__metrics__ENABLED
               value: "true"
             - name: GITEA__server__HTTP_PORT
