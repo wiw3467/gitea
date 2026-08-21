@@ -222,6 +222,10 @@ spec:
               value: gitea
             - name: GITEA__database__SSL_MODE
               value: disable
+            - name: GITEA__database__MAX_OPEN_CONNS
+              value: "1"
+            - name: GITEA__database__MAX_IDLE_CONNS
+              value: "1"
             - name: GITEA__cache__ENABLED
               value: "true"
             - name: GITEA__cache__ADAPTER
