@@ -42,7 +42,7 @@ export const options = {
       tags: { env: 'staging' },
     },
     browser_baseline: {
-      executor: 'shared-iterations',
+      executor: 'per-vu-iterations',
       exec: 'browserBaseline',
       vus: 1,
       iterations: 5,
@@ -51,7 +51,7 @@ export const options = {
       options: { browser: { type: 'chromium' } },
     },
     browser_staging: {
-      executor: 'shared-iterations',
+      executor: 'per-vu-iterations',
       exec: 'browserStaging',
       vus: 1,
       iterations: 5,
