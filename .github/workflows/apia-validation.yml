@@ -42,7 +42,7 @@ jobs:
             docker push localhost:5000/gitea:baseline
             git worktree remove /tmp/baseline-src --force
           else
-            echo "Baseline image up to date (${MAIN_SHA}) â€” skipping build"
+            echo "Baseline image up to date (${MAIN_SHA}) — skipping build"
             docker tag localhost:5000/gitea:baseline-${MAIN_SHA} localhost:5000/gitea:baseline
             docker push localhost:5000/gitea:baseline
           fi
@@ -189,6 +189,7 @@ jobs:
           OLLAMA_HOST: host.docker.internal
           OLLAMA_PORT: "11434"
           OLLAMA_MODEL: llama3:8b
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python $APIA_HOME/framework/pipeline.py
 
       - name: Teardown staging
