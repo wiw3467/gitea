@@ -1,6 +1,7 @@
 import http from 'k6/http';
 import { sleep, check, group } from 'k6';
 import encoding from 'k6/encoding';
+import { browser } from 'k6/browser';
 
 const BASELINE_URL = __ENV.BASELINE_URL || 'http://localhost:30301';
 const STAGING_URL  = __ENV.STAGING_URL  || 'http://localhost:30302';
@@ -23,6 +24,9 @@ const STAGES = [
   { duration: `${RAMPDOWN_S}s`, target: 0   },
 ];
 
+// Browser scenarios start during the measurement window (after warmup + ramp-up)
+const BROWSER_START_S = WARMUP_S + RAMPUP_S;
+
 export const options = {
   scenarios: {
     baseline: {
@@ -36,6 +40,24 @@ export const options = {
       exec: 'testStaging',
       stages: STAGES,
       tags: { env: 'staging' },
+    },
+    browser_baseline: {
+      executor: 'shared-iterations',
+      exec: 'browserBaseline',
+      vus: 1,
+      iterations: 5,
+      startTime: `${BROWSER_START_S}s`,
+      tags: { env: 'baseline' },
+      options: { browser: { type: 'chromium' } },
+    },
+    browser_staging: {
+      executor: 'shared-iterations',
+      exec: 'browserStaging',
+      vus: 1,
+      iterations: 5,
+      startTime: `${BROWSER_START_S}s`,
+      tags: { env: 'staging' },
+      options: { browser: { type: 'chromium' } },
     },
   },
   thresholds: {
@@ -214,3 +236,25 @@ function extractCSRF(body) {
 
 export function testBaseline() { runTest(BASELINE_URL); }
 export function testStaging()  { runTest(STAGING_URL);  }
+
+// ── Browser scenarios — Core Web Vitals collection ────────────────────────────
+
+const BROWSER_PAGES = ['/', '/user/login', '/explore/repos'];
+
+async function runBrowser(baseURL) {
+  for (const path of BROWSER_PAGES) {
+    const page = await browser.newPage();
+    try {
+      await page.goto(baseURL + path, { waitUntil: 'networkidle', timeout: 30000 });
+      await page.waitForTimeout(1000); // let CWV settle
+    } catch (_) {
+      // page errors don't fail the scenario — CWV collected up to the error
+    } finally {
+      await page.close();
+    }
+    sleep(1);
+  }
+}
+
+export async function browserBaseline() { await runBrowser(BASELINE_URL); }
+export async function browserStaging()  { await runBrowser(STAGING_URL);  }
