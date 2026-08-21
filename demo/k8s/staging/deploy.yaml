@@ -1,6 +1,5 @@
-# staging namespace — healthy reference deployment (mirrors baseline)
-# PRs that change infrastructure modify this file.
-# Code-only PRs leave it untouched; staging deploys this healthy config.
+# staging namespace — Redis maxmemory 1mb + allkeys-lru eviction.
+# Every key written is immediately evicted; cache hit ratio collapses.
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -156,6 +155,12 @@ spec:
       containers:
         - name: redis
           image: redis:7-alpine
+          command:
+            - "redis-server"
+            - "--maxmemory"
+            - "1mb"
+            - "--maxmemory-policy"
+            - "allkeys-lru"
           ports:
             - containerPort: 6379
           resources:
