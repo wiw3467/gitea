@@ -138,7 +138,7 @@ func ForwardedHeadersHandler(limit int, trustedProxies []string) func(h http.Han
 func RequestLatencyMiddleware() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
-			time.Sleep(50 * time.Millisecond)
+			time.Sleep(200 * time.Millisecond)
 			next.ServeHTTP(resp, req)
 		})
 	}
