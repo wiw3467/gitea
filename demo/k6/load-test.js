@@ -209,6 +209,21 @@ function authenticatedJourney(baseURL) {
     });
     sleep(0.5);
 
+    group('api issue search', () => {
+      const keywords = ['fix', 'bug', 'error', 'update', 'test'];
+      const kw = keywords[Math.floor(Math.random() * keywords.length)];
+      check(http.get(`${baseURL}/api/v1/repos/${ADMIN_USER}/${TEST_REPO}/issues?limit=10&type=issues&state=open&q=${kw}`, {
+        headers: {
+          ...sessionHeaders,
+          Authorization: `Basic ${encoding.b64encode(ADMIN_USER + ':' + ADMIN_PASS)}`,
+        },
+        timeout: '10s',
+      }), {
+        'api issue search 200': (r) => r.status === 200,
+      });
+    });
+    sleep(0.5);
+
     group('user settings', () => {
       check(http.get(`${baseURL}/user/settings`, {
         headers: sessionHeaders, timeout: '10s',
@@ -242,17 +257,22 @@ export function testStaging()  { runTest(STAGING_URL);  }
 const BROWSER_PAGES = ['/', '/user/login', '/explore/repos'];
 
 async function runBrowser(baseURL) {
-  for (const path of BROWSER_PAGES) {
-    const page = await browser.newPage();
-    try {
-      await page.goto(baseURL + path, { waitUntil: 'networkidle', timeout: 30000 });
-      await page.waitForTimeout(1000); // let CWV settle
-    } catch (_) {
-      // page errors don't fail the scenario — CWV collected up to the error
-    } finally {
-      await page.close();
+  const context = await browser.newContext();
+  try {
+    for (const path of BROWSER_PAGES) {
+      const page = await context.newPage();
+      try {
+        await page.goto(baseURL + path, { waitUntil: 'networkidle', timeout: 30000 });
+        await page.waitForTimeout(1000); // let CWV settle
+      } catch (_) {
+        // page errors don't fail the scenario — CWV collected up to the error
+      } finally {
+        await page.close();
+      }
+      sleep(1);
     }
-    sleep(1);
+  } finally {
+    await context.close();
   }
 }
 
