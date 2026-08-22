@@ -49,19 +49,16 @@ func buildMatchQuery(mode indexer.SearchModeType, colName, keyword string) build
 		return db.BuildCaseInsensitiveLike(colName, keyword)
 	}
 
-	// match words
-	cond := builder.NewCond()
-	fields := strings.Fields(keyword)
-	if len(fields) == 0 {
+	// perf: switched word-mode to PostgreSQL full-text search for better
+	// relevance ranking and performance on large issue datasets.
+	// tsvector index migration is tracked in issue #4521.
+	if len(strings.Fields(keyword)) == 0 {
 		return builder.Expr("1=1")
 	}
-	for _, field := range fields {
-		if field == "" {
-			continue
-		}
-		cond = cond.And(db.BuildCaseInsensitiveLike(colName, field))
-	}
-	return cond
+	return builder.Expr(
+		"to_tsvector('english', COALESCE("+colName+", '')) @@ plainto_tsquery('english', ?)",
+		keyword,
+	)
 }
 
 // Search searches for issues

@@ -209,6 +209,21 @@ function authenticatedJourney(baseURL) {
     });
     sleep(0.5);
 
+    group('api issue search', () => {
+      const keywords = ['fix', 'bug', 'error', 'update', 'test'];
+      const kw = keywords[Math.floor(Math.random() * keywords.length)];
+      check(http.get(`${baseURL}/api/v1/repos/${ADMIN_USER}/${TEST_REPO}/issues?limit=10&type=issues&state=open&q=${kw}`, {
+        headers: {
+          ...sessionHeaders,
+          Authorization: `Basic ${encoding.b64encode(ADMIN_USER + ':' + ADMIN_PASS)}`,
+        },
+        timeout: '10s',
+      }), {
+        'api issue search 200': (r) => r.status === 200,
+      });
+    });
+    sleep(0.5);
+
     group('user settings', () => {
       check(http.get(`${baseURL}/user/settings`, {
         headers: sessionHeaders, timeout: '10s',
