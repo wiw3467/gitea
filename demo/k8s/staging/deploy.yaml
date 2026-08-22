@@ -31,6 +31,10 @@ spec:
             - "postgres"
             - "-c"
             - "log_min_duration_statement=100"
+            - "-c"
+            - "shared_preload_libraries=pg_stat_statements"
+            - "-c"
+            - "pg_stat_statements.track=all"
           env:
             - name: POSTGRES_DB
               value: gitea
