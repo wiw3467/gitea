@@ -12,7 +12,7 @@ const MEASURE_S  = parseInt(__ENV.MEASURE_S  || '120', 10);
 const RAMPDOWN_S = parseInt(__ENV.RAMPDOWN_S || '30',  10);
 const VUS        = parseInt(__ENV.VUS        || '25',  10);
 
-// Test credentials — seeded in setup()
+// Test credentials — seeded by the CI "Seed test data" step, not k6 itself
 const ADMIN_USER = 'apia-admin';
 const ADMIN_PASS = 'Apia2024!';
 const TEST_REPO  = 'test-repo';
@@ -67,38 +67,10 @@ export const options = {
   },
 };
 
-// Seed both environments with a user + repo + issues before the test starts
-export function setup() {
-  for (const baseURL of [BASELINE_URL, STAGING_URL]) {
-    seedEnv(baseURL);
-  }
-}
-
-function seedEnv(baseURL) {
-  const headers = { 'Content-Type': 'application/json' };
-
-  // Auth header — user is pre-created by CI before k6 starts
-  const auth = { Authorization: `Basic ${encoding.b64encode(ADMIN_USER + ':' + ADMIN_PASS)}` };
-  const h = { ...headers, ...auth };
-
-  // Create a repo
-  http.post(`${baseURL}/api/v1/user/repos`, JSON.stringify({
-    name: TEST_REPO,
-    description: 'APIA load test repository',
-    private: false,
-    auto_init: true,
-    default_branch: 'main',
-  }), { headers: h });
-
-  // Create 20 issues so issue listing queries have something to return
-  for (let i = 1; i <= 20; i++) {
-    http.post(`${baseURL}/api/v1/repos/${ADMIN_USER}/${TEST_REPO}/issues`, JSON.stringify({
-      title: `Test issue ${i}`,
-      body: `This is test issue number ${i} created by APIA load test seeding.`,
-    }), { headers: h });
-  }
-}
-
+// Test data (repo + issues) is seeded by a dedicated CI step before k6 runs
+// (see .github/workflows/apia-validation.yml "Seed test data on both
+// environments") — not in a k6 setup() here, so a slow/failed seed fails its
+// own step with a clear error instead of corrupting the measurement window.
 
 function runTest(baseURL) {
   if (Math.random() < 0.30) {
