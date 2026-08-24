@@ -187,10 +187,6 @@ jobs:
           STAGING_NAMESPACE: staging
           BASELINE_NAMESPACE: baseline
           CONTAINER_NAME: app
-          DB_NAME: gitea
-          LOG_FILTER: "router: completed"
-          API_PREFIX: /api/
-          PROBE_SERVICES: "postgres:5432,redis:6379"
           OLLAMA_HOST: host.docker.internal
           OLLAMA_PORT: "11434"
           OLLAMA_MODEL: llama3:8b
