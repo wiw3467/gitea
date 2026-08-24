@@ -28,6 +28,10 @@ const STAGES = [
 const BROWSER_START_S = WARMUP_S + RAMPUP_S;
 
 export const options = {
+  // Default is 60s. Seeding (1 repo + 20 issues per env) normally finishes in
+  // a few seconds, but a slow/restarting pod can occasionally take longer —
+  // this is headroom for that, not a fix for whatever made it slow.
+  setupTimeout: '150s',
   scenarios: {
     baseline: {
       executor: 'ramping-vus',
