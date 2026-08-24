@@ -44,8 +44,8 @@ export const options = {
     browser_baseline: {
       executor: 'per-vu-iterations',
       exec: 'browserBaseline',
-      vus: 1,
-      iterations: 5,
+      vus: 2,
+      iterations: 8,
       startTime: `${BROWSER_START_S}s`,
       tags: { env: 'baseline' },
       options: { browser: { type: 'chromium' } },
@@ -53,8 +53,8 @@ export const options = {
     browser_staging: {
       executor: 'per-vu-iterations',
       exec: 'browserStaging',
-      vus: 1,
-      iterations: 5,
+      vus: 2,
+      iterations: 8,
       startTime: `${BROWSER_START_S}s`,
       tags: { env: 'staging' },
       options: { browser: { type: 'chromium' } },
