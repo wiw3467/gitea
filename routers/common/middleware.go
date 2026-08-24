@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 
 	"gitea.dev/modules/cache"
 	"gitea.dev/modules/gtprof"
@@ -35,6 +36,7 @@ func ProtocolMiddlewares() (handlers []any) {
 	}
 
 	handlers = append(handlers, routing.NewRequestInfoHandler())
+	handlers = append(handlers, ResponseDedupHandler())
 
 	if setting.IsAccessLogEnabled() {
 		handlers = append(handlers, context.AccessLogger())
@@ -130,6 +132,35 @@ func ForwardedHeadersHandler(limit int, trustedProxies []string) func(h http.Han
 		}
 	}
 	return proxy.ForwardedHeaders(opt)
+}
+
+// dedupMu guards dedupInFlight, the in-flight request tracker used by
+// ResponseDedupHandler to coalesce duplicate concurrent GET requests
+// (e.g. multiple browser tabs polling the same endpoint at once).
+var dedupMu sync.Mutex
+var dedupInFlight = map[string]int{}
+
+// ResponseDedupHandler tracks in-flight identical GET requests so callers
+// can be extended later to share a single upstream fetch across duplicate
+// concurrent requests, instead of every caller repeating the same work.
+func ResponseDedupHandler() func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
+			if req.Method != http.MethodGet {
+				next.ServeHTTP(resp, req)
+				return
+			}
+			key := req.URL.Path + "?" + req.URL.RawQuery
+			dedupMu.Lock()
+			defer dedupMu.Unlock()
+			dedupInFlight[key]++
+			next.ServeHTTP(resp, req)
+			dedupInFlight[key]--
+			if dedupInFlight[key] <= 0 {
+				delete(dedupInFlight, key)
+			}
+		})
+	}
 }
 
 func MustInitSessioner() func(next http.Handler) http.Handler {

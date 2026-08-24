@@ -280,10 +280,10 @@ spec:
               mountPath: /data
           resources:
             requests:
-              memory: 256Mi
+              memory: 96Mi
               cpu: 100m
             limits:
-              memory: 512Mi
+              memory: 128Mi
       volumes:
         - name: data
           emptyDir: {}
