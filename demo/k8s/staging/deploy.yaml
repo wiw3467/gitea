@@ -1,6 +1,7 @@
 # staging namespace — healthy reference deployment (mirrors baseline)
 # PRs that change infrastructure modify this file.
 # Code-only PRs leave it untouched; staging deploys this healthy config.
+# green-scenario: no functional change — validates APIA passes a clean PR.
 apiVersion: v1
 kind: Namespace
 metadata:
