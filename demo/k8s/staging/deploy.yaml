@@ -6,6 +6,35 @@ kind: Namespace
 metadata:
   name: staging
 ---
+# ── RBAC — lets the network agent (N8N, monitoring/default SA) read
+# pod/deployment/service readiness in this namespace for regression checks ────
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: apia-network-agent-reader
+  namespace: staging
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services"]
+    verbs: ["get", "list"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: apia-network-agent-reader-binding
+  namespace: staging
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: monitoring
+roleRef:
+  kind: Role
+  name: apia-network-agent-reader
+  apiGroup: rbac.authorization.k8s.io
+---
 # ── PostgreSQL ────────────────────────────────────────────────────────────────
 apiVersion: apps/v1
 kind: Deployment
