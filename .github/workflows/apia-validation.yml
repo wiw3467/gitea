@@ -122,6 +122,34 @@ jobs:
           seed_user baseline
           seed_user staging
 
+      - name: Seed test data on both environments
+        shell: bash
+        run: |
+          # Moved out of k6's setup() — a slow/restarting pod (e.g. a
+          # low-memory-limit regression) used to make setup() blow its 60s
+          # timeout, which corrupted the entire measurement window for the
+          # whole test run. Seeding here means a slow/failed seed only fails
+          # this one step, with its own clear error, and never touches k6's
+          # actual load-measurement window.
+          seed_data() {
+            local BASE=$1
+            local CREDS="apia-admin:Apia2024!"
+            curl -sf --max-time 20 -u "$CREDS" -X POST "$BASE/api/v1/user/repos" \
+              -H "Content-Type: application/json" \
+              -d '{"name":"test-repo","description":"APIA load test repository","private":false,"auto_init":true,"default_branch":"main"}' \
+              -o /dev/null || true
+            for i in $(seq 1 20); do
+              curl -sf --max-time 20 -u "$CREDS" -X POST "$BASE/api/v1/repos/apia-admin/test-repo/issues" \
+                -H "Content-Type: application/json" \
+                -d "{\"title\":\"Test issue $i\",\"body\":\"This is test issue number $i created by APIA load test seeding.\"}" \
+                -o /dev/null || true
+            done
+          }
+          seed_data http://localhost:30301 &
+          seed_data http://localhost:30302 &
+          wait
+          echo "Seeding complete"
+
       - name: Warm up both environments
         shell: bash
         run: |
