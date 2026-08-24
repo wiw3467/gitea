@@ -2,6 +2,7 @@
 # PRs that change infrastructure modify this file.
 # Code-only PRs leave it untouched; staging deploys this healthy config.
 # green-scenario: no functional change — validates APIA passes a clean PR.
+# retrigger 2026-08-24: verify new report structure (deterministic CDC/Trigger category, Impact table, Action Plan Type column).
 apiVersion: v1
 kind: Namespace
 metadata:
