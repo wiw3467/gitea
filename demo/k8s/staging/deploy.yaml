@@ -1,5 +1,6 @@
 # staging namespace — Redis REMOVED (regression under test)
 # Expected: cache domain absent in Prometheus, database load elevated.
+# retrigger 2026-08-24: verify new report structure (deterministic CDC/Trigger category, Impact table, Action Plan Type column) on a real regression.
 apiVersion: v1
 kind: Namespace
 metadata:
