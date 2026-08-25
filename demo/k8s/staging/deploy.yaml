@@ -1,3 +1,4 @@
+# retrigger 2026-08-25T19:53:14Z: clean rerun without the CPU sampler, to confirm the WARNING was sampler-induced noise
 # retrigger 2026-08-25T19:38:04Z: live profiling run to investigate staging-vs-baseline speed asymmetry
 # staging namespace — healthy reference deployment (mirrors baseline)
 # PRs that change infrastructure modify this file.
