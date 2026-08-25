@@ -3,6 +3,7 @@
 # Code-only PRs leave it untouched; staging deploys this healthy config.
 # green-scenario: no functional change — validates APIA passes a clean PR.
 # retrigger 2026-08-24: verify new report structure (deterministic CDC/Trigger category, Impact table, Action Plan Type column).
+# retrigger 2026-08-25: verify direction-blindness fix + backend severity/gate consistency fix.
 apiVersion: v1
 kind: Namespace
 metadata:
