@@ -1,6 +1,7 @@
 # staging namespace — healthy reference deployment (mirrors baseline)
 # PRs that change infrastructure modify this file.
 # Code-only PRs leave it untouched; staging deploys this healthy config.
+# retrigger 2026-08-25: verify all-five-fields LLM prompt grounding fix.
 apiVersion: v1
 kind: Namespace
 metadata:
