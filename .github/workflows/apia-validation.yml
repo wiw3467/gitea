@@ -9,11 +9,6 @@ on:
         description: 'PR number to validate (required for pipeline comment)'
         required: false
         default: ''
-      demo_mode:
-        description: 'Live showcase mode: visible k6 browser + low VU count for a readable log tail. Never used for real PR validation.'
-        type: boolean
-        required: false
-        default: false
 
 jobs:
   apia-validate:
@@ -198,17 +193,8 @@ jobs:
           K6_STAGE_MEASURE: 120
           K6_STAGE_RAMPDOWN: 30
           K6_VUS: 25
-          DEMO_MODE: ${{ github.event.inputs.demo_mode }}
         run: |
           K6_START_TS=$(date +%s)
-          # Live showcase only (workflow_dispatch with demo_mode:true) — never active on
-          # a real pull_request run, since a visible browser adds render overhead and a
-          # low VU count changes the actual load, both of which would taint real results.
-          if [ "$DEMO_MODE" = "true" ]; then
-            echo "DEMO MODE: visible k6 browser, VUS lowered to 4 for a readable log tail."
-            export K6_BROWSER_HEADLESS=false
-            K6_VUS=4
-          fi
           k6 run demo/k6/load-test.js \
             --env BASELINE_URL=http://localhost:30301 \
             --env STAGING_URL=http://localhost:30302 \
