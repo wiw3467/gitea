@@ -27,6 +27,19 @@ const STAGES = [
 // Browser scenarios start during the measurement window (after warmup + ramp-up)
 const BROWSER_START_S = WARMUP_S + RAMPUP_S;
 
+// k6 only breaks a metric out per-tag in its summary JSON if that exact
+// tagged combination is referenced in a threshold — otherwise every
+// env-tagged web vital collapses into one combined, undifferentiated
+// number, and staging/baseline silently end up comparing against the same
+// aliased value. These never fail (any p(95) passes); their only purpose is
+// forcing k6 to actually populate the per-environment breakdown.
+const CWV_VITALS = ['lcp', 'fcp', 'cls', 'ttfb', 'fid', 'inp'];
+const cwvThresholds = {};
+for (const vital of CWV_VITALS) {
+  cwvThresholds[`browser_web_vital_${vital}{env:staging}`]  = ['p(95)<999999999'];
+  cwvThresholds[`browser_web_vital_${vital}{env:baseline}`] = ['p(95)<999999999'];
+}
+
 export const options = {
   scenarios: {
     baseline: {
@@ -70,6 +83,7 @@ export const options = {
     // completed on each side instead of only seeing one combined total.
     'iterations{scenario:browser_staging}':  ['count>=0'],
     'iterations{scenario:browser_baseline}': ['count>=0'],
+    ...cwvThresholds,
   },
 };
 
