@@ -1,5 +1,6 @@
 # staging namespace — Redis maxmemory 1mb + allkeys-lru eviction.
 # retrigger 2026-08-25: verify full session fix set (self-instrumentation, direction-blindness, severity/gate, highlighting, CWV/iterations threshold).
+# retrigger 2026-08-25b: verify all-five-fields LLM prompt grounding fix (maxmemory direction).
 # Every key written is immediately evicted; cache hit ratio collapses.
 apiVersion: v1
 kind: Namespace
