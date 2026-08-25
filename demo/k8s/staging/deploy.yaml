@@ -4,6 +4,7 @@
 # green-scenario: no functional change — validates APIA passes a clean PR.
 # retrigger 2026-08-24: verify new report structure (deterministic CDC/Trigger category, Impact table, Action Plan Type column).
 # retrigger 2026-08-25: verify direction-blindness fix + backend severity/gate consistency fix.
+# retrigger 2026-08-25 (2): verify self-instrumentation corroboration fix (go_*/process_* can no longer flip a healthy PR to yellow).
 apiVersion: v1
 kind: Namespace
 metadata:
