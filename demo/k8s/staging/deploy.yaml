@@ -5,6 +5,7 @@
 # retrigger 2026-08-25 (2): verify false-positive noise fix via a real pull_request check.
 # retrigger 2026-08-25 (3): verify direction-blindness fix + backend severity/gate consistency fix.
 # retrigger 2026-08-25 (4): rerun after cancelling the previous in-progress run.
+# retrigger 2026-08-25 (5): verify self-instrumentation corroboration fix still catches this real regression.
 apiVersion: v1
 kind: Namespace
 metadata:
