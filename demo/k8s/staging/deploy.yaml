@@ -3,6 +3,7 @@
 # Code-only PRs leave it untouched; staging deploys this healthy config.
 # retrigger 2026-08-25: verify agent fixes (gauge blindness, frontend completion-rate, network/system baseline checks, CPU throttling).
 # retrigger 2026-08-25 (2): verify false-positive noise fix via a real pull_request check.
+# retrigger 2026-08-25 (3): verify direction-blindness fix + backend severity/gate consistency fix.
 apiVersion: v1
 kind: Namespace
 metadata:
