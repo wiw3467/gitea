@@ -1,3 +1,4 @@
+# retrigger 2026-08-25T18:49:33Z: verify LLM narrative restored after full revert of streaming/dashboard/demo changes
 # retrigger 2026-08-25T18:35:37Z: verify LLM narrative — previous run failed with empty response in 26ms, checking if reproducible without demo_mode's resource load
 # staging namespace — Redis maxmemory 1mb + allkeys-lru eviction.
 # retrigger 2026-08-25: verify full session fix set (self-instrumentation, direction-blindness, severity/gate, highlighting, CWV/iterations threshold).
