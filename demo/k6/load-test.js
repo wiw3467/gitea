@@ -96,6 +96,15 @@ export const options = {
     // completed on each side instead of only seeing one combined total.
     'iterations{scenario:browser_staging}':  ['count>=0'],
     'iterations{scenario:browser_baseline}': ['count>=0'],
+    // p95 blended across successful and failed requests can be misleading: a
+    // request that fails fast (e.g. a rejected write on a full cache) counts
+    // as a "fast" sample right alongside genuinely healthy ones, so a more
+    // broken system can post a LOWER blended p95. Breaking out
+    // expected_response:true isolates latency for requests that didn't fail,
+    // immune to that distortion. Never fails (any p(95) passes) — its only
+    // purpose is forcing k6 to populate this tag combination in the summary.
+    'http_req_duration{env:staging,expected_response:true}':  ['p(95)<999999999'],
+    'http_req_duration{env:baseline,expected_response:true}': ['p(95)<999999999'],
     ...cwvThresholds,
   },
 };
