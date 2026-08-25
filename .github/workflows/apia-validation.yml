@@ -118,6 +118,13 @@ jobs:
               gitea admin user create \
               --username apia-admin --password 'Apia2024!' \
               --email apia@test.local --admin --must-change-password=false 2>&1 || true
+            # Second user — lets the k6 write journey spread load/writes across
+            # more than one identity instead of every request being apia-admin.
+            MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' kubectl exec -n "$ns" "$POD" -- \
+              env GITEA_I_AM_BEING_UNSAFE_RUNNING_AS_ROOT=true GITEA_WORK_DIR=/data/gitea \
+              gitea admin user create \
+              --username apia-user2 --password 'Apia2024!' \
+              --email apia-user2@test.local --must-change-password=false 2>&1 || true
           }
           seed_user baseline
           seed_user staging
@@ -134,15 +141,21 @@ jobs:
           seed_data() {
             local BASE=$1
             local CREDS="apia-admin:Apia2024!"
-            curl -sf --max-time 20 -u "$CREDS" -X POST "$BASE/api/v1/user/repos" \
-              -H "Content-Type: application/json" \
-              -d '{"name":"test-repo","description":"APIA load test repository","private":false,"auto_init":true,"default_branch":"main"}' \
-              -o /dev/null || true
-            for i in $(seq 1 20); do
-              curl -sf --max-time 20 -u "$CREDS" -X POST "$BASE/api/v1/repos/apia-admin/test-repo/issues" \
+            # Three repos with different pre-seeded issue counts, instead of
+            # one shared repo — the k6 write/read journeys pick among them so
+            # traffic isn't all landing on the exact same rows.
+            declare -A REPO_ISSUES=( [test-repo]=20 [test-repo-2]=10 [test-repo-3]=5 )
+            for repo in "${!REPO_ISSUES[@]}"; do
+              curl -sf --max-time 20 -u "$CREDS" -X POST "$BASE/api/v1/user/repos" \
                 -H "Content-Type: application/json" \
-                -d "{\"title\":\"Test issue $i\",\"body\":\"This is test issue number $i created by APIA load test seeding.\"}" \
+                -d "{\"name\":\"$repo\",\"description\":\"APIA load test repository\",\"private\":false,\"auto_init\":true,\"default_branch\":\"main\"}" \
                 -o /dev/null || true
+              for i in $(seq 1 "${REPO_ISSUES[$repo]}"); do
+                curl -sf --max-time 20 -u "$CREDS" -X POST "$BASE/api/v1/repos/apia-admin/$repo/issues" \
+                  -H "Content-Type: application/json" \
+                  -d "{\"title\":\"Test issue $i\",\"body\":\"This is test issue number $i created by APIA load test seeding.\"}" \
+                  -o /dev/null || true
+              done
             done
           }
           seed_data http://localhost:30301 &
