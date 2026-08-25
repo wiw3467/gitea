@@ -55,7 +55,7 @@ spec:
         apia-role: staging
       containers:
         - name: postgres
-          image: postgres:15-alpine
+          image: postgres:9.6-alpine
           args:
             - "postgres"
             - "-c"
