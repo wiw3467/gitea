@@ -1,5 +1,6 @@
 # staging namespace — healthy reference deployment (mirrors baseline)
 # retrigger 2026-08-25: verify full session fix set (self-instrumentation, direction-blindness, severity/gate, highlighting, CWV/iterations threshold).
+# retrigger 2026-08-25b: verify all-five-fields LLM prompt grounding fix.
 # PRs that change infrastructure modify this file.
 # Code-only PRs leave it untouched; staging deploys this healthy config.
 apiVersion: v1
