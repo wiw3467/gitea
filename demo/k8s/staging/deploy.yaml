@@ -1,4 +1,5 @@
 # staging namespace — Redis REMOVED (regression under test)
+# retrigger 2026-08-25: verify full session fix set (self-instrumentation, direction-blindness, severity/gate, highlighting, CWV/iterations threshold).
 # Expected: cache domain absent in Prometheus, database load elevated.
 # retrigger 2026-08-24: verify new report structure (deterministic CDC/Trigger category, Impact table, Action Plan Type column) on a real regression.
 apiVersion: v1
