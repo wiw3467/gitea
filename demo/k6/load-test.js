@@ -15,7 +15,20 @@ const VUS        = parseInt(__ENV.VUS        || '25',  10);
 // Test credentials — seeded by the CI "Seed test data" step, not k6 itself
 const ADMIN_USER = 'apia-admin';
 const ADMIN_PASS = 'Apia2024!';
-const TEST_REPO  = 'test-repo';
+const SECOND_USER = 'apia-user2';
+const SECOND_PASS = 'Apia2024!';
+const USERS = [ADMIN_USER, SECOND_USER];
+
+// Multiple repos with different pre-seeded issue counts (owned by apia-admin,
+// same as before) — VUs pick among them instead of all hitting one shared
+// repo, so reads exercise more than one cache-friendly row set.
+const TEST_REPOS = [
+  { name: 'test-repo',   issues: 20 },
+  { name: 'test-repo-2', issues: 10 },
+  { name: 'test-repo-3', issues: 5  },
+];
+function pickRepo() { return TEST_REPOS[Math.floor(Math.random() * TEST_REPOS.length)]; }
+function pickUser() { return USERS[Math.floor(Math.random() * USERS.length)]; }
 
 const STAGES = [
   { duration: `${WARMUP_S}s`,   target: Math.max(1, Math.floor(VUS * 0.2)) },
@@ -93,11 +106,41 @@ export const options = {
 // own step with a clear error instead of corrupting the measurement window.
 
 function runTest(baseURL) {
-  if (Math.random() < 0.30) {
+  const r = Math.random();
+  if (r < 0.20) {
     anonymousJourney(baseURL);
-  } else {
+  } else if (r < 0.80) {
     authenticatedJourney(baseURL);
+  } else {
+    writeJourney(baseURL);
   }
+}
+
+// Shared login helper — both the read and write journeys authenticate the
+// same way, just as different users, so this used to be duplicated inline.
+function login(baseURL, username, password) {
+  const loginPage = http.get(`${baseURL}/user/login`, { timeout: '10s' });
+  const csrf = extractCSRF(loginPage.body);
+
+  const loginRes = http.post(`${baseURL}/user/login`, {
+    _csrf:     csrf,
+    user_name: username,
+    password:  password,
+  }, {
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    redirects: 5,
+    timeout: '10s',
+  });
+
+  check(loginRes, {
+    'login succeeded': (r) => r.status === 200 && !r.url.includes('user/login'),
+  });
+
+  const jar = loginRes.cookies;
+  const cookies = Object.entries(jar)
+    .map(([k, v]) => `${k}=${v[0].value}`)
+    .join('; ');
+  return { Cookie: cookies };
 }
 
 function anonymousJourney(baseURL) {
@@ -124,29 +167,9 @@ function anonymousJourney(baseURL) {
 
 function authenticatedJourney(baseURL) {
   group('authenticated', () => {
-    // Login
-    const loginPage = http.get(`${baseURL}/user/login`, { timeout: '10s' });
-    const csrf = extractCSRF(loginPage.body);
-
-    const loginRes = http.post(`${baseURL}/user/login`, {
-      _csrf:     csrf,
-      user_name: ADMIN_USER,
-      password:  ADMIN_PASS,
-    }, {
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      redirects: 5,
-      timeout: '10s',
-    });
-
-    check(loginRes, {
-      'login succeeded': (r) => r.status === 200 && !r.url.includes('user/login'),
-    });
-
-    const jar = loginRes.cookies;
-    const cookies = Object.entries(jar)
-      .map(([k, v]) => `${k}=${v[0].value}`)
-      .join('; ');
-    const sessionHeaders = { Cookie: cookies };
+    const username = pickUser();
+    const sessionHeaders = login(baseURL, username, ADMIN_PASS);
+    const repo = pickRepo();
 
     sleep(0.5);
 
@@ -158,7 +181,7 @@ function authenticatedJourney(baseURL) {
     sleep(0.5);
 
     group('repo view', () => {
-      check(http.get(`${baseURL}/${ADMIN_USER}/${TEST_REPO}`, {
+      check(http.get(`${baseURL}/${ADMIN_USER}/${repo.name}`, {
         headers: sessionHeaders, timeout: '10s',
       }), {
         'repo page 200': (r) => r.status === 200,
@@ -167,7 +190,7 @@ function authenticatedJourney(baseURL) {
     sleep(0.5);
 
     group('issue list', () => {
-      check(http.get(`${baseURL}/${ADMIN_USER}/${TEST_REPO}/issues`, {
+      check(http.get(`${baseURL}/${ADMIN_USER}/${repo.name}/issues`, {
         headers: sessionHeaders, timeout: '10s',
       }), {
         'issues 200': (r) => r.status === 200,
@@ -179,7 +202,7 @@ function authenticatedJourney(baseURL) {
       check(http.get(`${baseURL}/api/v1/user/repos?limit=10`, {
         headers: {
           ...sessionHeaders,
-          Authorization: `Basic ${encoding.b64encode(ADMIN_USER + ':' + ADMIN_PASS)}`,
+          Authorization: `Basic ${encoding.b64encode(username + ':' + ADMIN_PASS)}`,
         },
         timeout: '10s',
       }), {
@@ -189,10 +212,10 @@ function authenticatedJourney(baseURL) {
     sleep(0.5);
 
     group('api issues', () => {
-      check(http.get(`${baseURL}/api/v1/repos/${ADMIN_USER}/${TEST_REPO}/issues?limit=10&type=issues&state=open`, {
+      check(http.get(`${baseURL}/api/v1/repos/${ADMIN_USER}/${repo.name}/issues?limit=10&type=issues&state=open`, {
         headers: {
           ...sessionHeaders,
-          Authorization: `Basic ${encoding.b64encode(ADMIN_USER + ':' + ADMIN_PASS)}`,
+          Authorization: `Basic ${encoding.b64encode(username + ':' + ADMIN_PASS)}`,
         },
         timeout: '10s',
       }), {
@@ -209,6 +232,46 @@ function authenticatedJourney(baseURL) {
       });
     });
     sleep(1);
+  });
+}
+
+// Write-heavy journey — the previous test was 100% reads (bar the login
+// POST), which meant a real connection-pool/lock-contention regression on
+// the write path had nothing to actually exercise it. This creates an
+// issue and comments on an existing one, under a randomly picked user
+// against a randomly picked repo, so writes land on varied rows too.
+function writeJourney(baseURL) {
+  group('write', () => {
+    const username = pickUser();
+    const sessionHeaders = login(baseURL, username, ADMIN_PASS);
+    const repo = pickRepo();
+    const authHeaders = {
+      ...sessionHeaders,
+      Authorization: `Basic ${encoding.b64encode(username + ':' + ADMIN_PASS)}`,
+      'Content-Type': 'application/json',
+    };
+
+    sleep(0.3);
+
+    group('create issue', () => {
+      const n = Math.floor(Math.random() * 10000);
+      check(http.post(`${baseURL}/api/v1/repos/${ADMIN_USER}/${repo.name}/issues`,
+        JSON.stringify({ title: `Load-test issue ${n}`, body: `Created by ${username} during load test.` }),
+        { headers: authHeaders, timeout: '10s' }), {
+        'create issue 201': (r) => r.status === 201,
+      });
+    });
+    sleep(0.3);
+
+    group('comment on issue', () => {
+      const issueIndex = 1 + Math.floor(Math.random() * repo.issues);
+      check(http.post(`${baseURL}/api/v1/repos/${ADMIN_USER}/${repo.name}/issues/${issueIndex}/comments`,
+        JSON.stringify({ body: `Comment from ${username} during load test.` }),
+        { headers: authHeaders, timeout: '10s' }), {
+        'comment 201': (r) => r.status === 201,
+      });
+    });
+    sleep(0.5);
   });
 }
 
