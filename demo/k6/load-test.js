@@ -64,6 +64,12 @@ export const options = {
     'http_req_duration{env:staging}':  ['p(95)<2000'],
     'http_req_duration{env:baseline}': ['p(95)<9999999'],
     'http_req_failed{env:staging}':    ['rate<0.05'],
+    // These two never fail (count is always >=0) — their only purpose is to
+    // make k6 break "iterations" out per scenario in the summary export, so
+    // the frontend agent can tell how many browser iterations actually
+    // completed on each side instead of only seeing one combined total.
+    'iterations{scenario:browser_staging}':  ['count>=0'],
+    'iterations{scenario:browser_baseline}': ['count>=0'],
   },
 };
 
