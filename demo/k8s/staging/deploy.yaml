@@ -1,6 +1,8 @@
 # staging namespace — healthy reference deployment (mirrors baseline)
 # PRs that change infrastructure modify this file.
 # Code-only PRs leave it untouched; staging deploys this healthy config.
+# retrigger 2026-08-25: verify all-five-fields LLM prompt grounding fix.
+# retrigger 2026-08-25b: verify database agent now surfaces postgres Loki log anomalies.
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -55,7 +57,7 @@ spec:
         apia-role: staging
       containers:
         - name: postgres
-          image: postgres:15-alpine
+          image: postgres:9.6-alpine
           args:
             - "postgres"
             - "-c"
