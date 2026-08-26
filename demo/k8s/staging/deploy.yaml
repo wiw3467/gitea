@@ -1,6 +1,14 @@
 # staging namespace — healthy reference deployment (mirrors baseline)
+# retrigger 2026-08-25c: fresh run after network-hiccup cancellation.
 # PRs that change infrastructure modify this file.
 # Code-only PRs leave it untouched; staging deploys this healthy config.
+# retrigger 2026-08-25: verify agent fixes (gauge blindness, frontend completion-rate, network/system baseline checks, CPU throttling).
+# retrigger 2026-08-25 (2): verify false-positive noise fix via a real pull_request check.
+# retrigger 2026-08-25 (3): verify all-five-fields LLM prompt grounding fix.
+# retrigger 2026-08-25 (3): verify direction-blindness fix + backend severity/gate consistency fix.
+# retrigger 2026-08-25 (4): rerun after cancelling the previous in-progress run.
+# retrigger 2026-08-25 (5): verify self-instrumentation corroboration fix still catches this real regression.
+# retrigger 2026-08-25 (6): rerun after cancelling a stuck/interrupted run.
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -280,10 +288,10 @@ spec:
               mountPath: /data
           resources:
             requests:
-              memory: 256Mi
+              memory: 96Mi
               cpu: 100m
             limits:
-              memory: 512Mi
+              memory: 128Mi
       volumes:
         - name: data
           emptyDir: {}
