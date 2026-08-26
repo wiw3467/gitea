@@ -1,6 +1,10 @@
-# staging namespace — healthy reference deployment (mirrors baseline)
-# PRs that change infrastructure modify this file.
-# Code-only PRs leave it untouched; staging deploys this healthy config.
+# retrigger 2026-08-25T20:22:09Z: verify cache/database/backend noise-floor fix (redis eventloop 148->406 should no longer false-positive, real regression must still fire)
+# retrigger 2026-08-25T18:49:33Z: verify LLM narrative restored after full revert of streaming/dashboard/demo changes
+# retrigger 2026-08-25T18:35:37Z: verify LLM narrative — previous run failed with empty response in 26ms, checking if reproducible without demo_mode's resource load
+# staging namespace — Redis maxmemory 1mb + allkeys-lru eviction.
+# retrigger 2026-08-25: verify full session fix set (self-instrumentation, direction-blindness, severity/gate, highlighting, CWV/iterations threshold).
+# retrigger 2026-08-25b: verify all-five-fields LLM prompt grounding fix (maxmemory direction).
+# Every key written is immediately evicted; cache hit ratio collapses.
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -156,6 +160,12 @@ spec:
       containers:
         - name: redis
           image: redis:7-alpine
+          command:
+            - "redis-server"
+            - "--maxmemory"
+            - "1mb"
+            - "--maxmemory-policy"
+            - "allkeys-lru"
           ports:
             - containerPort: 6379
           resources:
