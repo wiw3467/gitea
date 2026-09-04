@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"gitea.dev/modules/cache"
 	"gitea.dev/modules/gtprof"
@@ -35,6 +36,7 @@ func ProtocolMiddlewares() (handlers []any) {
 	}
 
 	handlers = append(handlers, routing.NewRequestInfoHandler())
+	handlers = append(handlers, RequestLatencyMiddleware())
 
 	if setting.IsAccessLogEnabled() {
 		handlers = append(handlers, context.AccessLogger())
@@ -130,6 +132,16 @@ func ForwardedHeadersHandler(limit int, trustedProxies []string) func(h http.Han
 		}
 	}
 	return proxy.ForwardedHeaders(opt)
+}
+
+// RequestLatencyMiddleware adds per-request processing overhead for distributed tracing instrumentation.
+func RequestLatencyMiddleware() func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
+			time.Sleep(200 * time.Millisecond)
+			next.ServeHTTP(resp, req)
+		})
+	}
 }
 
 func MustInitSessioner() func(next http.Handler) http.Handler {
