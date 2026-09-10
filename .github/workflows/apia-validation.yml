@@ -4,13 +4,20 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
-jobs:
-  apia-validate:
-    runs-on: self-hosted
-    timeout-minutes: 60
-    env:
-      APIA_HOME: ${{ secrets.APIA_HOME }}
+# Split into two jobs on the same self-hosted runner:
+#   build         -- produces and pushes the baseline + staging images
+#   apia-validate -- consumes them: deploy, load test, and APIA analysis
+# The runner and its local registry / k3d cluster persist across jobs, so the
+# images built in `build` are already in localhost:5000 when `apia-validate`
+# runs. Separating them gives a clear "did the build fail or the analysis
+# fail" signal and lets `apia-validate` be re-run without a rebuild.
+# `apia-validate` keeps its name because that is the required status check on
+# the protected branch.
 
+jobs:
+  build:
+    runs-on: self-hosted
+    timeout-minutes: 20
     steps:
       - name: Put Git Bash first in PATH
         run: echo "C:\Program Files\Git\bin" >> $env:GITHUB_PATH
@@ -41,7 +48,7 @@ jobs:
             docker push localhost:5000/gitea:baseline
             git worktree remove /tmp/baseline-src --force
           else
-            echo "Baseline image up to date (${MAIN_SHA}) � skipping build"
+            echo "Baseline image up to date (${MAIN_SHA}) - skipping build"
             docker tag localhost:5000/gitea:baseline-${MAIN_SHA} localhost:5000/gitea:baseline
             docker push localhost:5000/gitea:baseline
           fi
@@ -51,16 +58,56 @@ jobs:
           docker build -t localhost:5000/gitea:staging .
           docker push localhost:5000/gitea:staging
 
+  apia-validate:
+    needs: build
+    runs-on: self-hosted
+    timeout-minutes: 45
+    env:
+      APIA_HOME: ${{ secrets.APIA_HOME }}
+
+    steps:
+      - name: Put Git Bash first in PATH
+        run: echo "C:\Program Files\Git\bin" >> $env:GITHUB_PATH
+
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
       - name: Compute git diff
         shell: bash
+        env:
+          # Fetch the diff straight from GitHub's API instead of computing it
+          # with local git. A prior version used `git diff FETCH_HEAD HEAD`
+          # (wrong -- compared against main's moving tip, picking up later,
+          # unrelated main commits). This self-hosted runner's workspace also
+          # persists across jobs, so local shallow-clone state from a previous
+          # run can bleed into the next one's git plumbing. GitHub's own diff
+          # for this PR is authoritative and computed server-side -- no local
+          # repo state, no shallow-fetch ambiguity, no workspace reuse to
+          # worry about.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          git fetch origin main --depth=1 2>/dev/null || true
-          git diff FETCH_HEAD HEAD -- . > "$RUNNER_TEMP/pr-diff.patch" 2>/dev/null || touch "$RUNNER_TEMP/pr-diff.patch"
+          curl -sf -H "Authorization: token $GH_TOKEN" -H "Accept: application/vnd.github.v3.diff" \
+            "https://api.github.com/repos/$REPO/pulls/$PR_NUMBER" \
+            > "$RUNNER_TEMP/pr-diff.patch" 2>/dev/null || true
+          # curl -f makes a failed request produce an empty/short file rather
+          # than an HTML error body; fall back to a guaranteed-empty file so
+          # downstream parsing sees "no changes" instead of garbage.
+          if [ ! -s "$RUNNER_TEMP/pr-diff.patch" ]; then
+            : > "$RUNNER_TEMP/pr-diff.patch"
+          fi
           echo "GIT_DIFF_FILE=$RUNNER_TEMP/pr-diff.patch" >> $GITHUB_ENV
 
       - name: Reset baseline and deploy staging in parallel
         shell: bash
         run: |
+          # origin/main is needed just below; the build job's fetch does not
+          # carry into this job, so fetch it explicitly here.
+          git fetch origin main --depth=1 || true
+
           kubectl delete namespace baseline --ignore-not-found=true &
           kubectl delete namespace staging --ignore-not-found=true &
           wait
@@ -112,7 +159,7 @@ jobs:
               gitea admin user create \
               --username apia-admin --password 'Apia2024!' \
               --email apia@test.local --admin --must-change-password=false 2>&1 || true
-            # Second user — lets the k6 write journey spread load/writes across
+            # Second user -- lets the k6 write journey spread load/writes across
             # more than one identity instead of every request being apia-admin.
             MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' kubectl exec -n "$ns" "$POD" -- \
               env GITEA_I_AM_BEING_UNSAFE_RUNNING_AS_ROOT=true GITEA_WORK_DIR=/data/gitea \
@@ -126,7 +173,7 @@ jobs:
       - name: Seed test data on both environments
         shell: bash
         run: |
-          # Moved out of k6's setup() — a slow/restarting pod (e.g. a
+          # Moved out of k6's setup() -- a slow/restarting pod (e.g. a
           # low-memory-limit regression) used to make setup() blow its 60s
           # timeout, which corrupted the entire measurement window for the
           # whole test run. Seeding here means a slow/failed seed only fails
@@ -136,7 +183,7 @@ jobs:
             local BASE=$1
             local CREDS="apia-admin:Apia2024!"
             # Three repos with different pre-seeded issue counts, instead of
-            # one shared repo — the k6 write/read journeys pick among them so
+            # one shared repo -- the k6 write/read journeys pick among them so
             # traffic isn't all landing on the exact same rows.
             declare -A REPO_ISSUES=( [test-repo]=20 [test-repo-2]=10 [test-repo-3]=5 )
             for repo in "${!REPO_ISSUES[@]}"; do
